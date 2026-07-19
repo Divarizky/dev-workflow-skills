@@ -8,7 +8,7 @@ set -euo pipefail
 
 REPO="Divarizky/dev-workflow-skills"
 BRANCH="main"
-DEST="${HOME}/.pi/agent/skills"
+DEST="${HOME}/.agents/skills"
 RAW="https://raw.githubusercontent.com/${REPO}/${BRANCH}"
 
 SKILLS=(
