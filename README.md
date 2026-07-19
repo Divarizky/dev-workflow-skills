@@ -2,6 +2,29 @@
 
 Kumpulan skill untuk development harian — grill, spec, breakdown, implement, review, debug, migrasi. **Full local**: semua artifact di `.agent-docs/`, tidak publish ke GitHub/tracker eksternal.
 
+## Install
+
+Butuh pi agent. Install global ke `~/.pi/agent/skills/` (semua project) — skill ini dirancang all-or-nothing karena saling depend via `setup-workflow` marker.
+
+```bash
+curl -L https://raw.githubusercontent.com/Divarizky/dev-workflow-skills/main/install.sh | bash
+```
+
+Flags:
+- `./install.sh --force` — overwrite semua skill tanpa prompt
+- `./install.sh --help` — usage
+
+Setelah install, **restart pi agent** (atau reload skills) supaya skill baru ke-pickup.
+
+Verifikasi:
+
+```bash
+ls ~/.pi/agent/skills/
+# harus muncul: ask-me/  bug-diagnosis/  code-review/  handoff/  implement/
+#                improve-architecture/  project-migration/  prototype/
+#                setup-workflow/  status/  to-issues/  to-prd/
+```
+
 ## Quick Start
 
 1. **Baru pertama kali di repo** → `setup-workflow`
