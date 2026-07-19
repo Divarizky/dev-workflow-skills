@@ -1,0 +1,10 @@
+{
+  "name": "dev-workflow-skills",
+  "version": "1.0.0",
+  "description": "Pi skills for structured dev workflow — grill, spec, breakdown, implement, review, prototype, debug, migration, handoff.",
+  "keywords": ["pi-package", "pi-skills", "dev-workflow"],
+  "license": "MIT",
+  "pi": {
+    "skills": ["./skills"]
+  }
+}
