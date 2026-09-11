@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-CANONICAL_ROOT="${DEV_SKILLS_ROOT:-$HOME/.agents}"
+SOURCE_ROOT="${DEV_SKILLS_ROOT:-$HOME/.agents}"
 REPO_URL="${DEV_SKILLS_REPO_URL:-git@github.com:Divarizky/dev-workflow-skills.git}"
 AGENTS=()
 UNLINK=false
@@ -15,11 +15,13 @@ Options:
   --Pi                Install for Pi
   --Codex             Install for Codex
   --Claude            Install for Claude Code
-  --canonical-root P  Canonical clone location
+  --source-root P     Shared skills source location
   --repo-url URL      Git repository URL
   --backup-existing   Move existing skill paths to a timestamped backup
-  --unlink            Remove only links created to this canonical source
+  --unlink            Remove only links created to this source
   -h, --help          Show this help
+
+Without an agent flag, only prepare the shared source at ~/.agents/skills/dev.
 
 Environment:
   DEV_SKILLS_ROOT, DEV_SKILLS_REPO_URL
@@ -32,7 +34,7 @@ while (($#)); do
     --Pi|--pi) AGENTS+=(pi); shift ;;
     --Codex|--codex) AGENTS+=(codex); shift ;;
     --Claude|--claude) AGENTS+=(claude); shift ;;
-    --canonical-root) CANONICAL_ROOT="${2:?missing value for --canonical-root}"; shift 2 ;;
+    --source-root) SOURCE_ROOT="${2:?missing value for --source-root}"; shift 2 ;;
     --repo-url) REPO_URL="${2:?missing value for --repo-url}"; shift 2 ;;
     --backup-existing) BACKUP_EXISTING=true; shift ;;
     --unlink) UNLINK=true; shift ;;
@@ -43,33 +45,31 @@ done
 
 command -v git >/dev/null || { echo "git tidak ditemukan." >&2; exit 1; }
 
-if ((${#AGENTS[@]} == 0)); then
-  echo "Pilih minimal satu agent: --Pi, --Codex, atau --Claude." >&2
-  usage >&2
-  exit 2
-fi
-
-if [[ ! -e "$CANONICAL_ROOT" ]]; then
-  mkdir -p "$(dirname "$CANONICAL_ROOT")"
-  echo "Cloning canonical repository ke $CANONICAL_ROOT"
-  git clone "$REPO_URL" "$CANONICAL_ROOT"
-elif [[ ! -d "$CANONICAL_ROOT/.git" ]]; then
-  echo "Memakai shared skills root yang sudah ada di $CANONICAL_ROOT (update Git dilewati)"
+if [[ ! -e "$SOURCE_ROOT" ]]; then
+  mkdir -p "$(dirname "$SOURCE_ROOT")"
+  echo "Cloning skills repository ke $SOURCE_ROOT"
+  git clone "$REPO_URL" "$SOURCE_ROOT"
+elif [[ ! -d "$SOURCE_ROOT/.git" ]]; then
+  echo "Memakai shared skills root yang sudah ada di $SOURCE_ROOT (update Git dilewati)"
 else
-  if [[ -n "$(git -C "$CANONICAL_ROOT" status --porcelain)" ]]; then
-    echo "$CANONICAL_ROOT memiliki perubahan lokal; commit/stash dulu." >&2
+  if [[ -n "$(git -C "$SOURCE_ROOT" status --porcelain)" ]]; then
+    echo "$SOURCE_ROOT memiliki perubahan lokal; commit/stash dulu." >&2
     exit 1
   fi
-  echo "Memperbarui canonical repository di $CANONICAL_ROOT"
-  git -C "$CANONICAL_ROOT" pull --ff-only
+  echo "Memperbarui skills repository di $SOURCE_ROOT"
+  git -C "$SOURCE_ROOT" pull --ff-only
 fi
 
-CANONICAL_SKILL="$CANONICAL_ROOT/skills/dev"
-[[ -f "$CANONICAL_SKILL/ask-me/SKILL.md" ]] || {
-  echo "Canonical repository tidak memiliki skills/dev yang valid: $CANONICAL_SKILL" >&2
+SOURCE_SKILL="$SOURCE_ROOT/skills/dev"
+[[ -f "$SOURCE_SKILL/ask-me/SKILL.md" ]] || {
+  echo "Source tidak memiliki skills/dev yang valid: $SOURCE_SKILL" >&2
   exit 1
 }
-CANONICAL_SKILL="$(cd "$CANONICAL_SKILL" && pwd)"
+SOURCE_SKILL="$(cd "$SOURCE_SKILL" && pwd)"
+
+if ((${#AGENTS[@]} == 0)); then
+  echo "Tidak ada target agent; source tersedia di $SOURCE_SKILL"
+fi
 
 skill_path() {
   case "$1" in
@@ -85,7 +85,7 @@ same_link() {
   [[ -L "$target" ]] || return 1
   local resolved
   resolved="$(cd "$(dirname "$target")" && realpath "$(basename "$target")" 2>/dev/null || true)"
-  [[ "$resolved" == "$CANONICAL_SKILL" ]]
+  [[ "$resolved" == "$SOURCE_SKILL" ]]
 }
 
 ensure_link() {
@@ -111,8 +111,8 @@ ensure_link() {
     echo "[$agent] target lama dipindahkan ke $backup"
   fi
 
-  ln -s "$CANONICAL_SKILL" "$target"
-  echo "[$agent] symlink dibuat: $target -> $CANONICAL_SKILL"
+  ln -s "$SOURCE_SKILL" "$target"
+  echo "[$agent] symlink dibuat: $target -> $SOURCE_SKILL"
 }
 
 remove_link() {
@@ -124,12 +124,11 @@ remove_link() {
     rm "$target"
     echo "[$agent] link dilepas: $target"
   else
-    echo "[$agent] dilewati karena bukan link ke canonical source: $target"
+    echo "[$agent] dilewati karena bukan link ke source ini: $target"
   fi
 }
 
-IFS=',' read -r -a selected <<< "$AGENTS"
-for agent in "${selected[@]}"; do
+for agent in "${AGENTS[@]}"; do
   [[ -n "$agent" ]] || continue
   if [[ "$UNLINK" == true ]]; then
     remove_link "$agent"
@@ -138,4 +137,4 @@ for agent in "${selected[@]}"; do
   fi
 done
 
-echo "Selesai. Canonical source: $CANONICAL_ROOT"
+echo "Selesai. Skills source: $SOURCE_ROOT"

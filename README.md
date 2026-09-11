@@ -6,8 +6,8 @@ prototype, handoff, status, dan penyelesaian merge conflict.
 
 ## Instalasi
 
-Installer menyimpan satu source canonical, lalu memasangnya ke agent pilihan
-menggunakan link folder. Dengan begitu, semua agent memakai skill yang sama.
+Jalankan installer dari folder repository ini. Installer memakai satu folder
+sumber bersama, lalu membuat link ke agent yang dipilih.
 
 ### Windows PowerShell
 
@@ -21,19 +21,75 @@ menggunakan link folder. Dengan begitu, semua agent memakai skill yang sama.
 ./install.sh --Pi --Codex --Claude
 ```
 
-Pilih agent sesuai kebutuhan, misalnya `--Pi`. Opsi tambahan:
+Tanpa flag agent, installer hanya menyiapkan folder sumber bersama tanpa
+membuat link ke Pi, Codex, atau Claude:
 
-- `--backup-existing` — pindahkan folder/link lama ke backup bertimestamp.
-- `--unlink` — lepas link yang dibuat installer.
-- `--canonical-root PATH` — ubah lokasi source canonical.
-- `--repo-url URL` — gunakan URL repository lain.
+```powershell
+.\install.ps1
+```
 
-Secara default, source canonical berada di `~/.agents`, dengan skill di
-`~/.agents/skills/dev`. Jika folder itu sudah dipakai sebagai shared skills
-root, installer menggunakannya langsung; update Git hanya dilakukan jika
-folder tersebut adalah clone repository. Installer memakai symlink di
-macOS/Linux dan directory junction di Windows. Folder skill target yang sudah
-ada tidak ditimpa otomatis tanpa `--backup-existing`.
+```bash
+./install.sh
+```
+
+## Flag installer
+
+Flag agent bersifat opsional. Jika digunakan, beberapa flag boleh digabung:
+
+| Flag | Agent | Target link |
+|---|---|---|
+| `--Pi` | Pi | `~/.pi/agent/skills/dev` |
+| `--Codex` | Codex | `~/.codex/skills/dev` |
+| `--Claude` | Claude Code | `~/.claude/skills/dev` |
+
+### `--backup-existing`
+
+Pindahkan folder atau link target lama ke backup bertimestamp sebelum membuat
+link baru. Tanpa flag ini, target yang sudah ada tidak ditimpa.
+
+```powershell
+.\install.ps1 --Pi --backup-existing
+```
+
+```bash
+./install.sh --Pi --backup-existing
+```
+
+### `--unlink`
+
+Lepas link yang menunjuk ke folder sumber skill ini. Folder asli atau link ke
+sumber lain tidak akan dihapus.
+
+```powershell
+.\install.ps1 --Pi --unlink
+```
+
+```bash
+./install.sh --Pi --unlink
+```
+
+### `--source-root PATH`
+
+Ubah lokasi folder sumber. Installer mencari skill pada `PATH/skills/dev`.
+
+```powershell
+.\install.ps1 --Pi --source-root "D:\agent-skills"
+```
+
+```bash
+./install.sh --Pi --source-root "$HOME/agent-skills"
+```
+
+## Folder sumber default
+
+```text
+~/.agents/skills/dev
+```
+
+Jika `~/.agents` sudah dipakai sebagai shared skills root, installer
+menggunakannya langsung. Update Git hanya dilakukan jika folder tersebut
+merupakan clone repository. Installer memakai symlink di macOS/Linux dan
+directory junction di Windows.
 
 ## Instalasi sebagai package
 

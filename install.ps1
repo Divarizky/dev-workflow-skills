@@ -10,7 +10,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-$CanonicalRoot = if ($env:DEV_SKILLS_ROOT) { $env:DEV_SKILLS_ROOT } else { Join-Path $HOME ".agents" }
+$SourceRoot = if ($env:DEV_SKILLS_ROOT) { $env:DEV_SKILLS_ROOT } else { Join-Path $HOME ".agents" }
 $RepoUrl = if ($env:DEV_SKILLS_REPO_URL) { $env:DEV_SKILLS_REPO_URL } else { "git@github.com:Divarizky/dev-workflow-skills.git" }
 
 # Parse all options ourselves so double-dash flags work consistently in
@@ -23,10 +23,10 @@ for ($Index = 0; $Index -lt $Arguments.Count; $Index++) {
     "--claude" { $Claude = $true }
     "--unlink" { $Unlink = $true }
     "--backup-existing" { $BackupExisting = $true }
-    "--canonical-root" {
-      if ($Index + 1 -ge $Arguments.Count) { throw "Nilai --canonical-root belum diberikan." }
+    "--source-root" {
+      if ($Index + 1 -ge $Arguments.Count) { throw "Nilai --source-root belum diberikan." }
       $Index++
-      $CanonicalRoot = $Arguments[$Index]
+      $SourceRoot = $Arguments[$Index]
     }
     "--repo-url" {
       if ($Index + 1 -ge $Arguments.Count) { throw "Nilai --repo-url belum diberikan." }
@@ -41,10 +41,6 @@ $Agents = @()
 if ($Pi) { $Agents += "pi" }
 if ($Codex) { $Agents += "codex" }
 if ($Claude) { $Agents += "claude" }
-if ($Agents.Count -eq 0) {
-  throw "Pilih minimal satu agent: --Pi, --Codex, atau --Claude."
-}
-
 function Get-FullPath([string]$Path) {
   return [System.IO.Path]::GetFullPath($Path)
 }
@@ -73,11 +69,11 @@ function Test-ReparsePoint([string]$Path) {
   }
 }
 
-function Ensure-Canonical([string]$Root) {
+function Ensure-Source([string]$Root) {
   $root = Get-FullPath $Root
   if (-not (Test-Path -LiteralPath $root)) {
     New-Item -ItemType Directory -Force -Path (Split-Path -Parent $root) | Out-Null
-    Write-Host "Cloning canonical repository ke $root"
+    Write-Host "Cloning skills repository ke $root"
     git clone $RepoUrl $root
   } elseif (-not (Test-Path -LiteralPath (Join-Path $root ".git"))) {
     Write-Host "Memakai shared skills root yang sudah ada di $root (update Git dilewati)"
@@ -86,23 +82,23 @@ function Ensure-Canonical([string]$Root) {
     if ($dirty) {
       throw "$root memiliki perubahan lokal. Commit/stash dulu sebelum installer melakukan update."
     }
-    Write-Host "Memperbarui canonical repository di $root"
+    Write-Host "Memperbarui skills repository di $root"
     git -C $root pull --ff-only
   }
 
   $skill = Join-Path $root "skills\dev"
   if (-not (Test-Path -LiteralPath (Join-Path $skill "ask-me\SKILL.md"))) {
-    throw "Canonical repository tidak memiliki skills\dev yang valid: $skill"
+    throw "Source tidak memiliki skills\dev yang valid: $skill"
   }
   return @{ Root = $root; Skill = (Get-FullPath $skill) }
 }
 
-function Test-LinkTo([string]$Path, [string]$CanonicalSkill) {
+function Test-LinkTo([string]$Path, [string]$SourceSkill) {
   if (-not (Test-ReparsePoint $Path)) { return $false }
   try {
     $item = Get-Item -LiteralPath $Path -Force -ErrorAction Stop
     foreach ($linkTarget in @($item.Target)) {
-      if ($linkTarget -and ((Get-FullPath $linkTarget) -eq (Get-FullPath $CanonicalSkill))) {
+      if ($linkTarget -and ((Get-FullPath $linkTarget) -eq (Get-FullPath $SourceSkill))) {
         return $true
       }
     }
@@ -110,12 +106,12 @@ function Test-LinkTo([string]$Path, [string]$CanonicalSkill) {
   return $false
 }
 
-function Ensure-Link([string]$Agent, [string]$Target, [string]$CanonicalSkill) {
+function Ensure-Link([string]$Agent, [string]$Target, [string]$SourceSkill) {
   $target = Get-FullPath $Target
   $parent = Split-Path -Parent $target
   New-Item -ItemType Directory -Force -Path $parent | Out-Null
 
-  if (Test-LinkTo $target $CanonicalSkill) {
+  if (Test-LinkTo $target $SourceSkill) {
     Write-Host "[$Agent] sudah terhubung: $target"
     return
   }
@@ -133,11 +129,11 @@ function Ensure-Link([string]$Agent, [string]$Target, [string]$CanonicalSkill) {
     Write-Host "[$Agent] target lama dipindahkan ke $backup"
   }
 
-  New-Item -ItemType Junction -Path $target -Target $CanonicalSkill | Out-Null
-  Write-Host "[$Agent] junction dibuat: $target -> $CanonicalSkill"
+  New-Item -ItemType Junction -Path $target -Target $SourceSkill | Out-Null
+  Write-Host "[$Agent] junction dibuat: $target -> $SourceSkill"
 }
 
-function Remove-Link([string]$Agent, [string]$Target, [string]$CanonicalSkill) {
+function Remove-Link([string]$Agent, [string]$Target, [string]$SourceSkill) {
   $target = Get-FullPath $Target
   if (-not (Test-ReparsePoint $target)) {
     if (Test-Path -LiteralPath $target) {
@@ -148,8 +144,8 @@ function Remove-Link([string]$Agent, [string]$Target, [string]$CanonicalSkill) {
     return
   }
 
-  if (-not (Test-LinkTo $target $CanonicalSkill)) {
-    Write-Warning "[$Agent] dilewati karena link tidak menunjuk ke canonical source: $target"
+  if (-not (Test-LinkTo $target $SourceSkill)) {
+    Write-Warning "[$Agent] dilewati karena link tidak menunjuk ke source ini: $target"
     return
   }
 
@@ -157,14 +153,18 @@ function Remove-Link([string]$Agent, [string]$Target, [string]$CanonicalSkill) {
   Write-Host "[$Agent] link dilepas: $target"
 }
 
-$canonical = Ensure-Canonical $CanonicalRoot
+$source = Ensure-Source $SourceRoot
+if ($Agents.Count -eq 0) {
+  Write-Host "Tidak ada target agent; source tersedia di $($source.Skill)"
+}
+
 foreach ($Agent in $Agents) {
   $target = Get-AgentSkillPath $Agent
   if ($Unlink) {
-    Remove-Link $Agent $target $canonical.Skill
+    Remove-Link $Agent $target $source.Skill
   } else {
-    Ensure-Link $Agent $target $canonical.Skill
+    Ensure-Link $Agent $target $source.Skill
   }
 }
 
-Write-Host "Selesai. Canonical source: $($canonical.Root)"
+Write-Host "Selesai. Skills source: $($source.Root)"
