@@ -93,13 +93,19 @@ Pass spec (work card `Detail` + `Ref` + `Done` criteria atau grill behavior+term
 
 `code-review` `disable-model-invocation: true` → **baca `code-review/SKILL.md`, jalankan Step 1-5 manual** di sesi yang sama.
 
+Gunakan kontrak hasil review berikut:
+
+- `Verdict: PASS` → lanjut ke Step 5 dan boleh menawarkan commit.
+- `Verdict: CHANGES_REQUESTED` → tetap In Progress, kembali ke Step 3, lalu review ulang.
+- `Verdict: BLOCKED` → hentikan workflow dan laporkan context atau validasi yang menghalangi; jangan menandai task selesai atau menawarkan commit.
+
 ### Parallel Execution (Step 2b)
 
 Review **SETELAH semua task batch selesai** — sekali untuk seluruh diff batch. Jangan review per-task di subagent. Task gagal subagent juga harus selesai (sequential) sebelum review. Stage seluruh file batch dari sesi utama (single-writer), bukan dari subagent.
 
 ## Step 5 — Complete
 
-**Review pass:**
+**`Verdict: PASS`:**
 - Jika task berasal dari work card: cut `### In Progress` → `### Done` (append bawah), `[ ]`→`[x]`, lalu update tracker.
 - Jika Universal mode memakai instruksi langsung: jangan membuat tracking otomatis; laporkan perubahan dan validasi di respons.
 - Jika user sebelumnya memilih path checklist tertentu: update hanya artifact tersebut.
@@ -108,11 +114,16 @@ Review **SETELAH semua task batch selesai** — sekali untuk seluruh diff batch.
 - Jika work card tersedia: cek `### Queue` — task eligible (dependency `[x]`)? Tawarkan: "TASK-N eligible. Kerjakan? (y/n)". `y` → ulang Step 2.
 - Jika Project mode dan `task_done == task_count`: tanya apakah work card `.workspace/work/F-<id>.md` perlu dihapus. Hapus hanya setelah requirement approved sudah tersalin ke SRS dan user mengonfirmasi.
 
-**Review ada temuan:**
+**`Verdict: CHANGES_REQUESTED`:**
 - Task tetap `## In Progress`
 - No commit suggestion
 - Balik Step 3, perbaiki, ulang Step 4. Maks **3 siklus review→fix** — masih ada temuan → [Escape Hatch](../shared/COMMON.md#escape-hatch): stop, tanya user lanjut perbaiki/handoff/batal
 - Batch paralel: temuan diidentifikasi per task → task terlibat kembali Step 3; lain lanjut. Temuan menyebar tak jelas → semua batch kembali Step 3 sequential.
+
+**`Verdict: BLOCKED`:**
+- Task tetap `## In Progress`.
+- Jangan memperbaiki atau mengulang secara otomatis.
+- Laporkan penyebab blocked dan minta input atau perbaikan prerequisite dari user.
 
 ### Update Index (Project Mode)
 
@@ -173,5 +184,6 @@ Nemu arsitektur signifikan (tidak terkait task) → catat: path, deskripsi, sara
 ## Chain
 
 `to-requirements`→`to-tasks`→`implement`→`code-review`. Setelah `code-review`:
-- Pass → kembali Step 5 `implement`
-- Fail → kembali Step 3 `implement` (perbaiki, review ulang)
+- `Verdict: PASS` → kembali Step 5 `implement`
+- `Verdict: CHANGES_REQUESTED` → kembali Step 3 `implement` (perbaiki, review ulang)
+- `Verdict: BLOCKED` → stop dan laporkan prerequisite atau validasi yang belum terpenuhi

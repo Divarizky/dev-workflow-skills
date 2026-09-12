@@ -106,13 +106,19 @@ Output: list untuk footer commit.
 
 Invoke `code-review` dengan sumber diff `staged`.
 
-**Hard gate:** draft commit dan `git commit` hanya boleh dijalankan setelah hasil review terbaru `PASS`. Hasil selain `PASS` tidak boleh dilewati dengan membuat pesan commit.
+**Hard gate:** draft commit dan `git commit` hanya boleh dijalankan setelah
+`code-review` mengembalikan `Verdict: PASS` untuk staged diff terbaru. Jangan
+menyimpulkan `PASS` dari `Status: review-complete`. Verdict yang hilang atau
+tidak dikenal diperlakukan sebagai `BLOCKED`.
 
 **Conditional Flow:**
-| Hasil review | Aksi |
-|--------------|------|
-| CHANGES_REQUESTED / FAIL | Hentikan workflow sebelum Step 6. Laporkan temuan, lalu setelah perbaikan yang disetujui siap, ulangi pre-check dan code-review dari Step 5. Jangan membuat draft atau menjalankan commit selama hasil belum `PASS`. |
-| PASS | Tawarkan saran commit message → Step 6 (note "Code review PASS") |
+
+| Verdict review | Aksi |
+|---|---|
+| `CHANGES_REQUESTED` | Hentikan workflow sebelum Step 6. Laporkan temuan, lalu setelah perbaikan yang disetujui siap, ulangi pre-check dan `code-review` dari Step 5. Jangan membuat draft atau menjalankan commit. |
+| `BLOCKED` | Hentikan workflow sebelum Step 6. Laporkan input, context, atau axis yang menghalangi review. Perbaiki penyebabnya lalu ulangi pre-check dan `code-review`. |
+| `PASS` | Tawarkan saran commit message → Step 6 (catat `Code review PASS`). |
+| Verdict hilang/tidak dikenal | Perlakukan sebagai `BLOCKED`; jangan membuat draft atau menjalankan commit. |
 
 ## Step 6 — Show Draft and Choose Version
 
@@ -167,6 +173,7 @@ Tutup workflow dengan:
 ```text
 Changes: <file yang masuk commit>
 Validation: <hasil code review, conflict check, dan secret scan>
+Review Verdict: <PASS | CHANGES_REQUESTED | BLOCKED | not run>
 Status: <complete | partial | blocked | cancelled>
 Risks/Limitations: <none atau daftar singkat>
 Next Step: <aksi yang disarankan, tanpa auto-push>
@@ -195,7 +202,7 @@ Next Step: <aksi yang disarankan, tanpa auto-push>
 ## Dependencies
 
 - `git` CLI (stdlib)
-- Skill `code-review` (chain via [pattern](../shared/COMMON.md#chain-pattern))
+- Skill `code-review` (chain via [pattern](../shared/COMMON.md#chain-pattern)); gunakan kontrak `Verdict: PASS | CHANGES_REQUESTED | BLOCKED`
 
 ## Notes
 

@@ -93,9 +93,27 @@ Brief: laporkan (a) requirement hilang/parsial, (b) behavior tidak diminta (scop
 
 Salah satu gagal → jangan block total. Laporkan partial: "Standards: [result], Spec: [error]". Tetap tampilkan heading keduanya — yang gagal isi pesan error.
 
+## Review Verdict
+
+`Status` menjelaskan apakah proses review selesai. `Verdict` adalah hasil gate
+yang boleh dipakai oleh skill lain. Jangan menyimpulkan verdict dari `Status`.
+
+| Kondisi | Status | Verdict |
+|---|---|---|
+| Kedua axis selesai, tidak ada temuan actionable, dan spec tersedia atau user secara eksplisit menerima `no spec available` | `review-complete` | `PASS` |
+| Review selesai dan ada temuan yang wajib diperbaiki | `review-complete` | `CHANGES_REQUESTED` |
+| Diff/input invalid, context wajib belum tersedia, atau salah satu axis gagal | `partial` atau `blocked` | `BLOCKED` |
+
+Temuan actionable mencakup pelanggaran requirement, bug correctness/security,
+hard standards violation, atau validation yang gagal. Saran opsional dan
+judgement call tidak memblokir `PASS`.
+
+Jika review berhenti sebelum aggregate, tetap kembalikan `Status: blocked` dan
+`Verdict: BLOCKED`. `review-complete` bukan pengganti `PASS`.
+
 ## Step 5 — Aggregate
 
-Tampilkan dua laporan di `## Standards` dan `## Spec`, verbatim/sedikit dirapikan. **Jangan merge/re-rank** — dua axis sengaja dipisah.
+Tampilkan dua laporan di `## Standards` dan `## Spec`, verbatim/sedikit dirapikan. **Jangan merge/re-rank** — dua axis sengaja dipisah. Setelah kedua laporan, hitung `Verdict` memakai aturan di atas.
 
 Universal mode: tampilkan kedua laporan lengkap di chat, lalu tambahkan:
 
@@ -103,11 +121,12 @@ Universal mode: tampilkan kedua laporan lengkap di chat, lalu tambahkan:
 Mode: Universal
 Persistence: chat-only
 Status: review-complete | partial | blocked
+Verdict: PASS | CHANGES_REQUESTED | BLOCKED
 Spec: available | no spec available
 Next Step: <aksi yang disarankan, tanpa auto-apply>
 ```
 
-Jangan menulis hasil review ke file dalam Universal mode. Jika salah satu sub-agent gagal, gunakan `Status: partial` dan tampilkan error di axis terkait.
+Jangan menulis hasil review ke file dalam Universal mode. Jika salah satu sub-agent gagal, gunakan `Status: partial` dan `Verdict: BLOCKED`, lalu tampilkan error di axis terkait.
 
 ## Other Suggested Skills
 
