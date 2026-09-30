@@ -33,27 +33,29 @@ Sebelum mencari input atau mengubah state:
 
 1. **Konteks percakapan** — behavior jelas dari grill `ask-me` / diskusi → langsung Step 3 (TDD), skip Step 2.
 2. **Task persisted** — cari work card di path yang sudah disepakati atau `.workspace/work/F-<id>.md` jika Project mode. Ambil task eligible di `## Tasks` → `### Queue` (Depends sudah `[x]` di `### Done`).
-   - ≥2 task `Parallel: yes` → siapkan batch (maks 3) untuk Step 2b.
-   - Lanjut Step 2.
+   - ≥2 task bertanda `Parallel: yes` → jadikan kandidat batch (maks 3), lalu lakukan preflight Step 2b **sebelum** memindahkan status di Step 2. Penanda lama bukan keputusan final.
+   - Jika tidak ada batch yang lolos preflight, lanjut Step 2 untuk satu task eligible dan jalankan Step 3 sequential.
 3. **Tidak ada keduanya** — tanya: "Mau langsung implement dari instruksi ini, atau breakdown dulu lewat `to-tasks`?" Dalam Universal mode, `to-tasks` menghasilkan checklist di chat dan status breakdown di respons.
 
 ## Step 2 — Update Status (only for persisted tasks)
 
-Jika task berasal dari work card, cut dari `### Queue` → paste ke `### In Progress`. Batch `Parallel: yes` → cut semua sekaligus.
+Setelah preflight Step 2b menentukan batch final (atau memilih satu task sequential), jika task berasal dari work card, cut task terpilih dari `### Queue` → paste ke `### In Progress`. Batch yang lolos → cut semua task terpilih sekaligus. Jangan pindahkan task yang gagal preflight ke `### In Progress` sebagai bagian batch.
 
 Jika Universal mode memakai instruksi langsung atau checklist di chat, jangan membuat atau memperbarui work card secara otomatis; cukup catat status di respons.
 
-## Step 2b — Run in Parallel (batch `Parallel: yes`)
+## Step 2b — Preflight and Run in Parallel (batch `Parallel: yes`)
 
-Jalan kalau: batch eligible (≥2 task, semua `Parallel: yes` + dependency selesai) DAN `subagent_supported == true`.
+**Preflight sebelum Step 2, ulang pada setiap batch** termasuk batch berikutnya setelah task selesai; keputusan saat `to-tasks` dibuat tidak menjamin keadaan kode saat ini.
 
-1. Ambil maks **3** task (urutan priority)
-2. Spawn subagent per task → jalankan **Step 3 (TDD) saja**. Brief: Detail + Done criteria, selalu baca aturan canonical `../shared/TDD.md`; baca vocabulary tambahan jika tersedia. Instruksi:
+1. Ambil kandidat dari `### Queue` (maks **3**, urutan priority). Periksa ulang semua `Depends` sudah berada di `### Done` dengan `[x]`, `Parallel: yes`, `subagent_supported == true`, sekurangnya dua kandidat, serta batas concurrency tool/platform. Jika kondisi gagal, jalankan satu task eligible secara sequential. Jangan menaikkan `Parallel: no` menjadi `yes` diam-diam; jika penanda sudah basi, usulkan revisi task kepada user.
+2. Untuk **setiap** kandidat, inspeksi kode secukupnya dan perkirakan `write_scope`: path relatif file/direktori yang kemungkinan berubah, termasuk test, konfigurasi, migrasi, generated files, dan shared entry points. Bandingkan setiap pasang scope, beserta efek bersama seperti schema/API yang dipakai task lain. Jika estimasi belum bisa dipersempit atau ada overlap/ketergantungan baru, keluarkan kandidat yang konflik; jika tersisa <2, jalankan sequential. Laporkan alasan perubahan keputusan. Jangan menganggap `write_scope` yang kosong atau tidak diketahui berarti tidak overlap.
+3. Periksa apakah tool yang terdeteksi mendukung coding, isolasi kerja yang diperlukan, dan pengambilan hasil. Jika mendukung `write_scope`/padanan, teruskan scope eksplisit per agent; jika tidak, tulis batasnya di brief. Jangan menganggap parameter scope saja menegakkan isolasi. Jika worktree/candidate perlu diintegrasikan, rencanakan verifikasi dan integrasi hasil sebelum review; jangan anggap perubahan agent otomatis muncul di checkout utama. Bila prasyarat isolasi atau integrasi tidak terpenuhi, jalankan sequential. Jika tool mensyaratkan Git bersih untuk spawn/integrasi dan pemindahan status di Step 2 akan mengotori checkout, jangan lanjutkan batch: pilih sequential atau minta user menyepakati alur integrasi yang menjaga checkout bersih. Jangan mengubah work card/tracker untuk mengejar preflight.
+4. Setelah batch final lolos preflight, jalankan Step 2 lalu spawn subagent per task → jalankan **Step 3 (TDD) saja**. Brief: Detail + Done criteria + `write_scope`, selalu baca aturan canonical `../shared/TDD.md`; baca vocabulary tambahan jika tersedia. Instruksi:
    - **JANGAN** update work card atau tracker (single-writer: sesi utama)
    - **JANGAN** commit
    - **JANGAN** review
-   - Laporkan: path file, test pass/fail, done criteria terpenuhi/tidak
-3. **Fallback sequential**: `subagent_supported == false` → kerjakan batch satu per satu (Step 3 normal). `Parallel: yes` diabaikan.
+   - Laporkan: path file yang benar-benar berubah, test pass/fail, done criteria terpenuhi/tidak
+5. Sesi utama cek hasil dan file yang benar-benar berubah terhadap `write_scope`; bila ada perubahan di luar scope, konflik, atau hasil belum terintegrasi, jangan stage/review/nyatakan Done. Selesaikan dengan user atau kerjakan sequential sesuai scope yang disepakati.
 
 ### Sub-Agent Error Handling
 
@@ -78,6 +80,10 @@ Adjust by type:
 ### Implementation Notes
 
 - Gunakan vocabulary dari `PROJECT.md`/`CONTEXT.md` bila tersedia, dan hormati `ADR.md` bila ada
+- Baca stack docs relevan (`SECURITY.md`, `CODE_STYLE.md`, `DATABASE.md`, `API.md`) jika aktif:
+  - Patuhi aturan `SECURITY.md`: dilarang mematikan auth, membypass otorisasi, atau memasukkan secret di kode/`.md`
+  - Patuhi `CODE_STYLE.md`: ikuti konvensi penamaan dan jalankan checklist verifikasi sebelum selesai
+  - Jika task melibatkan bootstrap database/API baru, ikuti **Protocol Missing Stack Docs** di `../shared/COMMON.md`
 - Test verifikasi behavior via interface publik, bukan detail implementasi
 - Nemu code smell struktural → catat, jangan perbaiki. Sarankan `improve-architecture` nanti.
 
@@ -93,20 +99,15 @@ Pass spec (work card `Detail` + `Ref` + `Done` criteria atau grill behavior+term
 
 `code-review` `disable-model-invocation: true` → **baca `code-review/SKILL.md`, jalankan Step 1-5 manual** di sesi yang sama.
 
-Gunakan kontrak hasil review berikut:
-
-- `Verdict: PASS` → lanjut ke Step 5 dan boleh menawarkan commit.
-- `Verdict: CHANGES_REQUESTED` → tetap In Progress, kembali ke Step 3, lalu review ulang.
-- `Verdict: BLOCKED` → hentikan workflow dan laporkan context atau validasi yang menghalangi; jangan menandai task selesai atau menawarkan commit.
-
 ### Parallel Execution (Step 2b)
 
 Review **SETELAH semua task batch selesai** — sekali untuk seluruh diff batch. Jangan review per-task di subagent. Task gagal subagent juga harus selesai (sequential) sebelum review. Stage seluruh file batch dari sesi utama (single-writer), bukan dari subagent.
 
 ## Step 5 — Complete
 
-**`Verdict: PASS`:**
+**Review pass:**
 - Jika task berasal dari work card: cut `### In Progress` → `### Done` (append bawah), `[ ]`→`[x]`, lalu update tracker.
+- **Sync Stack Docs (Project mode)**: jika task yang selesai mengubah model data aktual, endpoint contract, konfigurasi auth, atau stack linter, sinkronkan fakta baru ke section bertanda `<!-- auto -->` pada stack doc terkait (`DATABASE.md`, `API.md`, `SECURITY.md`, `CODE_STYLE.md`). Jangan ubah section manual (tanpa marker). Laporkan sinkronisasi ini di `Changes`.
 - Jika Universal mode memakai instruksi langsung: jangan membuat tracking otomatis; laporkan perubahan dan validasi di respons.
 - Jika user sebelumnya memilih path checklist tertentu: update hanya artifact tersebut.
 - Inform user task selesai
@@ -114,16 +115,11 @@ Review **SETELAH semua task batch selesai** — sekali untuk seluruh diff batch.
 - Jika work card tersedia: cek `### Queue` — task eligible (dependency `[x]`)? Tawarkan: "TASK-N eligible. Kerjakan? (y/n)". `y` → ulang Step 2.
 - Jika Project mode dan `task_done == task_count`: tanya apakah work card `.workspace/work/F-<id>.md` perlu dihapus. Hapus hanya setelah requirement approved sudah tersalin ke SRS dan user mengonfirmasi.
 
-**`Verdict: CHANGES_REQUESTED`:**
+**Review ada temuan:**
 - Task tetap `## In Progress`
 - No commit suggestion
 - Balik Step 3, perbaiki, ulang Step 4. Maks **3 siklus review→fix** — masih ada temuan → [Escape Hatch](../shared/COMMON.md#escape-hatch): stop, tanya user lanjut perbaiki/handoff/batal
 - Batch paralel: temuan diidentifikasi per task → task terlibat kembali Step 3; lain lanjut. Temuan menyebar tak jelas → semua batch kembali Step 3 sequential.
-
-**`Verdict: BLOCKED`:**
-- Task tetap `## In Progress`.
-- Jangan memperbaiki atau mengulang secara otomatis.
-- Laporkan penyebab blocked dan minta input atau perbaikan prerequisite dari user.
 
 ### Update Index (Project Mode)
 
@@ -184,6 +180,5 @@ Nemu arsitektur signifikan (tidak terkait task) → catat: path, deskripsi, sara
 ## Chain
 
 `to-requirements`→`to-tasks`→`implement`→`code-review`. Setelah `code-review`:
-- `Verdict: PASS` → kembali Step 5 `implement`
-- `Verdict: CHANGES_REQUESTED` → kembali Step 3 `implement` (perbaiki, review ulang)
-- `Verdict: BLOCKED` → stop dan laporkan prerequisite atau validasi yang belum terpenuhi
+- Pass → kembali Step 5 `implement`
+- Fail → kembali Step 3 `implement` (perbaiki, review ulang)
