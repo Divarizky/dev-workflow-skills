@@ -54,54 +54,134 @@ Gunakan to-requirements untuk merumuskan fitur billing ini.
 
 ```mermaid
 flowchart TD
-    START([Prompt]) --> ENTRY{Tahu skill yang dipakai?}
-    ENTRY -->|Tidak atau ambigu| ASK[ask-me<br/>klarifikasi dan routing]
-    ENTRY -->|Ya| DIRECT[Skill langsung]
-    ASK --> MODE{Perlu Project mode atau acuan?}
+    classDef gate fill:#f97316,stroke:#c2410c,stroke-width:2px,color:#fff;
+    classDef review fill:#8b5cf6,stroke:#6d28d9,stroke-width:2px,color:#fff;
+    classDef build fill:#0284c7,stroke:#0369a1,stroke-width:2px,color:#fff;
+    classDef context fill:#059669,stroke:#047857,stroke-width:2px,color:#fff;
+
+    USER([Prompt / Request]) --> ENTRY{Tahu skill yang dipakai?}
+    ENTRY -->|Tidak / Ambigu| ASK[ask-me<br/><i>Klarifikasi & Routing</i>]:::gate
+    ENTRY -->|Ya| DIRECT[Skill Langsung]:::gate
+
+    ASK --> MODE{Perlu Project mode?}
     DIRECT --> MODE
 
-    MODE -->|Tidak| UNIVERSAL[Universal mode]
-    MODE -->|Ya| SETUP[setup-workflow<br/>context + docs + tracker]
-    SETUP --> PROJECT[Project mode aktif]
-    UNIVERSAL --> ROUTE{Jenis pekerjaan}
+    MODE -->|Tidak| UNIVERSAL[Universal Mode<br/><i>Chat-only, cepat</i>]
+    MODE -->|Ya| SETUP[setup-workflow<br/><i>AGENTS + Context + SRS</i>]:::context
+    SETUP --> PROJECT[Project Mode Aktif]:::context
+    UNIVERSAL --> ROUTE{Jenis Pekerjaan}
     PROJECT --> ROUTE
 
-    ROUTE -->|Fitur kecil atau task jelas| IMP[implement]
-    ROUTE -->|Fitur besar| REQ[to-requirements]
-    REQ --> TASK[to-tasks]
-    TASK --> IMP
-    IMP --> REVIEW[code-review]
-    REVIEW --> COMMITQ{Perlu commit?}
-    COMMITQ -->|Ya| COMMIT[git-commit]
-    COMMITQ -->|Tidak| DONE([Selesai])
-    COMMIT --> DONE
+    %% 7 Cabang
+    ROUTE -->|Fitur Besar| REQ[to-requirements]:::build
+    REQ --> TASK[to-tasks]:::build
+    TASK --> IMP[implement]:::build
 
-    ROUTE -->|Bug sulit| BUG[bug-diagnosis]
-    BUG --> BUGQ{Ada fix yang perlu direview?}
-    BUGQ -->|Ya| REVIEW
-    BUGQ -->|Tidak| DONE
+    ROUTE -->|Fitur Kecil| IMP
+    ROUTE -->|Bug Sulit| BUG[bug-diagnosis]:::build
+    ROUTE -->|Desain Ragu| PROTO[prototype]:::build
+    PROTO --> IMP
 
-    ROUTE -->|Desain belum jelas| PROTO[prototype]
-    PROTO --> NEXT{Lanjut ke mana?}
-    NEXT -->|Task| TASK
-    NEXT -->|Implementasi| IMP
+    ROUTE -->|Arsitektur / Debt| ARCH[improve-architecture]:::build
+    ARCH --> IMP
 
-    ROUTE -->|Arsitektur atau refactor| ARCH[improve-architecture]
-    ARCH --> ARCHQ{Kandidat dipilih?}
-    ARCHQ -->|Ya| IMP
-    ARCHQ -->|Belum| DONE
+    ROUTE -->|Konflik Git| CONF[merge-conflict]:::gate
+    CONF --> COMMIT[git-commit]:::gate
 
-    ROUTE -->|Konflik Git aktif| CONFLICT[merge-conflict]
-    CONFLICT --> GITFLOW{Operasi Git}
-    GITFLOW -->|Merge selesai| COMMIT
-    GITFLOW -->|Rebase atau cherry-pick| CONTINUE[Lanjutkan operasi Git]
+    ROUTE -->|Migrasi Codebase| MIG[project-migration]:::context
+    MIG --> IMP
 
-    ROUTE -->|Migrasi project| MIGRATE[project-migration]
-    MIGRATE --> MIGDONE[Validasi migrasi]
-    MIGDONE --> DONE
+    %% Delivery Gate
+    IMP --> REV[code-review]:::review
+    BUG --> REV
+    REV -->|REVISE| IMP
+    REV -->|PASS| COMMIT
+    COMMIT --> DONE([Selesai / Clean State]):::gate
+```
 
-    ROUTE -->|Cek progres| STATUS[status]
-    ROUTE -->|Pindah sesi| HANDOFF[handoff]
+---
+
+### 1. Feature Lifecycle Flow (Fitur Besar & Fast-Track)
+
+Alur pengembangan fitur terstruktur dari perumusan spesifikasi (EARS), breakdown task, siklus TDD red-green-refactor, hingga dual-axis review dan commit gate dengan reuse snapshot.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Dev as Developer
+    participant Ask as ask-me
+    participant Req as to-requirements
+    participant Task as to-tasks
+    participant Imp as implement
+    participant Rev as code-review
+    participant Git as git-commit
+
+    Dev->>Ask: Request fitur baru
+    Ask->>Ask: Grill (3-5 pertanyaan klarifikasi)
+    Ask->>Req: Handoff fitur besar
+    Req->>Req: Formulasi EARS + work card F-<id>.md
+    Req->>Dev: Gate [1] Approve [2] Approve+to-tasks [3] Revisi
+    Dev->>Task: Opsi [2] Lanjut breakdown
+    Task->>Task: Generate TASK-xx + update TRACKER.md
+    Task->>Imp: Kirim paket chain inline
+    loop TDD Cycle
+        Imp->>Imp: Red -> Green -> Refactor
+    end
+    Imp->>Rev: Kirim staged diff + Ref/Done criteria
+    Rev->>Rev: 3 Sub-Agents (Spec, Standards, Safety)
+    Rev-->>Imp: Verdict: PASS (simpan Reviewed Snapshot)
+    Imp->>Git: Chain ke commit (Index final)
+    Git->>Git: Bypass review ulang (Reuse PASS snapshot) + Scan Gitleaks
+    Git->>Dev: Commit tersimpan bersih
+```
+
+---
+
+### 2. Investigation, Spiking & Architecture Flow
+
+Alur investigasi akar masalah (RCA) 6 fase, eksplorasi desain/spike yang belum pasti via prototype, dan audit technical debt/coupling berkala.
+
+```mermaid
+flowchart LR
+    classDef diag fill:#ea580c,stroke:#c2410c,stroke-width:2px,color:#fff;
+    classDef fix fill:#0284c7,stroke:#0369a1,stroke-width:2px,color:#fff;
+    classDef gate fill:#8b5cf6,stroke:#6d28d9,stroke-width:2px,color:#fff;
+
+    ERR([Error / Crash]) --> BUG[bug-diagnosis<br/><i>Vertical Repro Harness</i>]:::diag
+    BUG --> ROOT{Diagnosis Only?}
+    ROOT -->|Ya| REPORT[Laporan RCA + Rekomendasi Solusi]:::diag
+    ROOT -->|Tidak| FIX[Targeted Fix Implementation]:::fix
+    
+    DEBT([Technical Debt]) --> ARCH[improve-architecture<br/><i>Scan Coupling & Layer</i>]:::diag
+    ARCH --> FIX
+
+    SPIKE([Desain Ragu]) --> PROTO[prototype<br/><i>Spike LOGIC / UI</i>]:::diag
+    PROTO --> FIX
+
+    FIX --> REV[code-review<br/><i>Spec + Style + Security</i>]:::gate
+    REV --> GIT[git-commit<br/><i>Gitleaks Gate</i>]:::gate
+```
+
+---
+
+### 3. Migration & Git Conflict Resolution Flow
+
+Alur migrasi struktur codebase secara bertahap via state di `.workspace/migration/`, serta resolusi konflik Git hunk-by-hunk dengan verifikasi tes sebelum commit.
+
+```mermaid
+flowchart LR
+    classDef setup fill:#059669,stroke:#047857,stroke-width:2px,color:#fff;
+    classDef git fill:#d97706,stroke:#b45309,stroke-width:2px,color:#fff;
+    classDef gate fill:#8b5cf6,stroke:#6d28d9,stroke-width:2px,color:#fff;
+
+    MIG_REQ([Migrasi Stack / Codebase]) --> SETUP[setup-workflow<br/><i>Init AGENTS + Context</i>]:::setup
+    SETUP --> MIG[project-migration<br/><i>State di .workspace/migration</i>]:::setup
+    MIG --> VERIFY[Build & Test Verification]:::gate
+
+    CONF_REQ([Merge / Rebase Conflict]) --> CONF[merge-conflict<br/><i>Guided Hunk Resolution</i>]:::git
+    CONF --> VERIFY
+
+    VERIFY --> GIT[git-commit<br/><i>Verified Tree Commit</i>]:::gate
 ```
 
 ## Kapan memakai setiap skill?
