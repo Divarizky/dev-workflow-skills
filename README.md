@@ -202,6 +202,7 @@ flowchart LR
 | `project-migration` | Migrasi project lama | `Migrasikan project lama ini.` |
 | `status` | Snapshot pekerjaan | `Saya sedang mengerjakan apa?` |
 | `handoff` | Melanjutkan di sesi lain | `Buat handoff untuk besok.` |
+| `github-issue` | Membuat GitHub issue dari task, requirement, atau bug | `Buat issue GitHub dari task export CSV ini.` |
 
 ## Dua mode kerja
 
