@@ -190,8 +190,9 @@ features:
     updated: <YYYY-MM-DD>
     task_count: <total task>
     task_done: <task selesai — 0 pas baru dibuat>
+    issue: <owner/repo>#<number>  # opsional, hanya ditulis setelah issue fitur dibuat via github-issue
 ```
-ID baru → tambahkan. ID existing → update `updated`, `task_count`, `task_done`. Jangan overwrite `created` & `source`.
+ID baru → tambahkan. ID existing → update `updated`, `task_count`, `task_done`. Jangan overwrite `created`, `source` & `issue`.
 
 ### Notes
 - Path atau identifier konkret boleh masuk deskripsi task. Hindari code snippet.
@@ -202,6 +203,14 @@ ID baru → tambahkan. ID existing → update `updated`, `task_count`, `task_don
 
 - Project: beri tahu user daftar task + path work card `.workspace/work/F-<id>.md`.
 - Universal: tampilkan daftar task, `Status breakdown`, `Task count`, `Eligible berikutnya`, dan `Persistence: chat-only`; tidak ada path artifact.
+- Tawarkan issue GitHub (opsional, sebelum prompt `implement`): tanya "Buat GitHub issue dari task ini? (n / fitur / pilih TASK-x,y)". Default `n`.
+  - `n` atau tidak dijawab: `github-issue` tidak dibaca dan tidak dijalankan; lanjut ke cek eligible di bawah.
+  - `fitur`: satu issue untuk seluruh fitur; semua task ditulis sebagai checklist `- [ ] TASK-x` di dalamnya.
+  - `pilih`: satu issue per task terpilih; cocok untuk task yang dikerjakan orang atau agent berbeda.
+  - Untuk `fitur` dan `pilih`: baca `github-issue/SKILL.md`, jalankan Step 1-6 manual dengan input sesuai pilihan. Preview dan confirmation gate `github-issue` tetap berlaku penuh; `to-tasks` NEVER melewatinya.
+  - Setelah issue `fitur` berhasil dibuat di Project mode: tulis `issue: <owner/repo>#<number>` ke entry fitur di `.workspace/context/TRACKER.md`. Field ini dipakai `implement` untuk menyinkronkan checkbox. NEVER menulis referensi issue ke work card atau field lain.
+  - Issue `pilih` (per task) dan Universal mode: referensi tidak disimpan, URL hanya tampil di chat, tidak ada sinkronisasi checkbox.
+  - Setelah `github-issue` selesai atau dibatalkan, kembali ke cek eligible.
 - Cek task tracker jika Project; Universal memakai checklist yang baru ditampilkan: ada task eligible (di Queue, Depends none atau semua sudah Done)?
   - **Ada**: tanya "Lanjut execute task pertama via `implement`? (y/n)". `y` → baca `implement/SKILL.md`, jalankan Step 1-5 manual (chain `to-requirements`→`to-tasks`). User bisa invoke `implement` langsung kapan saja.
   - **Tidak ada (semua blocked)**: "Semua task nunggu dependency. Selesaikan blocker dulu via `implement`."
@@ -216,9 +225,9 @@ Changes: <work card dan/atau tracker yang dibuat/diubah; none jika Universal mod
 Validation: <AC/Ref traceability, dependency, cycle, overlap, dan Done criteria>
 Status: <complete | partial | blocked | cancelled>
 Risks/Limitations: <none atau daftar singkat>
-Next Step: <implement, to-requirements, atau aksi lain; tanpa auto-apply>
+Next Step: <implement, github-issue (opsional, atas pilihan user), to-requirements, atau aksi lain; tanpa auto-apply>
 ```
 
 ## Other Suggested Skills
 
-[Workflow](../WORKFLOW.md) — Fitur sudah ada task → `implement`. Belum ada requirements jelas → `to-requirements` dulu. Task butuh sharpen → `ask-me` grill dalam. Uncertainty High → `prototype` dulu, answer captured baru breakdown real task.
+[Workflow](../WORKFLOW.md) — Fitur sudah ada task → `implement`. Belum ada requirements jelas → `to-requirements` dulu. Task ingin dijadikan issue GitHub → `github-issue` (opsional, atas pilihan user). Task butuh sharpen → `ask-me` grill dalam. Uncertainty High → `prototype` dulu, answer captured baru breakdown real task.

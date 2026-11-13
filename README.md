@@ -76,6 +76,8 @@ flowchart TD
     ROUTE -->|Fitur Besar| REQ[to-requirements]:::build
     REQ --> TASK[to-tasks]:::build
     TASK --> IMP[implement]:::build
+    TASK -.->|Opsional: user pilih buat issue| GHI[github-issue]:::gate
+    GHI -.-> IMP
 
     ROUTE -->|Fitur Kecil| IMP
     ROUTE -->|Bug Sulit| BUG[bug-diagnosis]:::build
@@ -112,6 +114,7 @@ sequenceDiagram
     participant Ask as ask-me
     participant Req as to-requirements
     participant Task as to-tasks
+    participant GHI as github-issue
     participant Imp as implement
     participant Rev as code-review
     participant Git as git-commit
@@ -123,6 +126,10 @@ sequenceDiagram
     Req->>Dev: Gate [1] Approve [2] Approve+to-tasks [3] Revisi
     Dev->>Task: Opsi [2] Lanjut breakdown
     Task->>Task: Generate TASK-xx + update TRACKER.md
+    opt User memilih membuat issue
+        Task->>Dev: Tawarkan issue GitHub (n / fitur / pilih TASK)
+        Task->>GHI: Baca dan jalankan github-issue (preview + konfirmasi)
+    end
     Task->>Imp: Kirim paket chain inline
     loop TDD Cycle
         Imp->>Imp: Red -> Green -> Refactor
@@ -130,6 +137,9 @@ sequenceDiagram
     Imp->>Rev: Kirim staged diff + Ref/Done criteria
     Rev->>Rev: 3 Sub-Agents (Spec, Standards, Safety)
     Rev-->>Imp: Verdict: PASS (simpan Reviewed Snapshot)
+    opt Issue fitur punya field issue di TRACKER.md
+        Imp->>GHI: Centang checkbox TASK-x (preview + konfirmasi)
+    end
     Imp->>Git: Chain ke commit (Index final)
     Git->>Git: Bypass review ulang (Reuse PASS snapshot) + Scan Gitleaks
     Git->>Dev: Commit tersimpan bersih

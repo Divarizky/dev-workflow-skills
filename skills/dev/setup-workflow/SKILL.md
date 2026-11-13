@@ -158,6 +158,7 @@ Tulis jika belum ada. Sudah ada & format valid → skip. Format rusak/kosong →
       updated: <YYYY-MM-DD>
       task_count: <total>
       task_done: <selesai>
+      issue: <owner/repo>#<number>  # opsional; diisi to-tasks setelah issue fitur dibuat
   ```
   Kosong (`features: []`) saat pertama dibuat — diisi `to-tasks` saat fitur pertama di-breakdown.
 

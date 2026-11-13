@@ -260,9 +260,10 @@ features:
     updated: <YYYY-MM-DD>
     task_count: <total>
     task_done: <selesai>
+    issue: <owner/repo>#<number>  # opsional; diisi to-tasks setelah issue fitur dibuat
 ```
 
-Single-writer: `to-tasks` (buat entry), `implement` (counter). Task aktif dan detailnya disimpan di `.workspace/work/F-<id>.md`.
+Single-writer: `to-tasks` (buat entry dan `issue`), `implement` (counter). Task aktif dan detailnya disimpan di `.workspace/work/F-<id>.md`.
 
 ---
 

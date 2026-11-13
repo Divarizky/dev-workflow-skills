@@ -91,6 +91,9 @@ Susun draft dengan struktur berikut. Hilangkan section yang memang tidak relevan
 - [ ] <kondisi terukur dan bisa diverifikasi tanpa bertanya lagi>
 - [ ] <kondisi terukur>
 
+## Tasks (issue level fitur saja)
+- [ ] <TASK-id> — <judul task> (Done: <done criteria singkat>)  # format `- [ ] TASK-<n> ` dipakai `implement` untuk mencentang; jangan diubah
+
 ## Technical Context
 - Files: <path relatif dari repo root yang sudah diverifikasi ada dengan `git ls-files`>
 - Approach: <opsional, hanya jika sudah disepakati>
@@ -110,6 +113,7 @@ Environment: <versi, OS, runtime>
 Aturan isi:
 
 - Acceptance criteria memakai checkbox `- [ ]`, satu kondisi per baris.
+- Issue level fitur (dari `to-tasks`, pilihan `fitur`): satu issue, section `Tasks` berisi satu checkbox per task. Acceptance Criteria digabung dari `Done` dan `Ref` task. Section `Tasks` dihilangkan untuk issue per task atau bug.
 - NEVER memakai kata samar ("bagus", "lengkap", "sesuai"). Tulis kondisi yang bisa diuji.
 - Path di `Technical Context` MUST sudah diverifikasi dengan `git ls-files` atau `ls`. Path yang belum diverifikasi ditulis sebagai `Proposed: <path>`.
 - Root cause yang belum terverifikasi ditandai `(hipotesis)`.
@@ -180,7 +184,7 @@ Bandingkan `title` dan `labels` dengan preview. Jika tidak cocok, laporkan perbe
 
 ## Step 6 — Report
 
-Tampilkan URL issue di chat. Skill ini NEVER menulis referensi issue ke work card, `TRACKER.md`, atau file workflow lain. Jika user ingin menyimpan referensi, beri tahu bahwa itu di luar skill ini dan ditangani sesi yang memiliki artifact tersebut (`to-tasks` untuk `## Tasks`).
+Tampilkan URL issue di chat. Skill ini NEVER menulis referensi issue ke work card, `TRACKER.md`, atau file workflow lain. Jika user ingin menyimpan referensi, beri tahu bahwa itu di luar skill ini. Saat dipanggil dari `to-tasks` (issue level fitur), `to-tasks` yang menulis `issue:` ke `TRACKER.md`, dan `implement` yang mencentang checkbox saat task Done.
 
 ## Stop Conditions
 
@@ -206,10 +210,11 @@ Risks/Limitations: <none atau daftar singkat>
 Next Step: <implement | to-tasks | status | none>
 ```
 
-Jika status `complete`, tampilkan URL issue di baris pertama.
+Jika status `complete`, tampilkan URL issue di baris pertama dan `Issue ref: <owner/repo>#<number>` agar caller (`to-tasks`) bisa menyimpannya.
 
 ## Routing
 
+- Dipanggil dari Step 5 `to-tasks` atas pilihan user: setelah selesai atau dibatalkan, kembali ke prompt `implement` milik `to-tasks`.
 - Task yang sudah berbentuk issue dan siap dikerjakan → `implement` (user yang memulai; skill ini tidak auto-invoke).
 - Requirement belum approved → `to-requirements`.
 - Bug belum didiagnosis → `bug-diagnosis`.
