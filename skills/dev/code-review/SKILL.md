@@ -4,7 +4,14 @@ description: "Review diff dari sumber eksplisit dengan axis Standards, Spec, dan
 disable-model-invocation: true
 ---
 
-# Code Review
+<critical>
+- PROVABLE FINDINGS ONLY: Setiap temuan WAJIB memiliki bukti alur eksekusi, path:line terverifikasi, atau hasil uji reproduksi.
+- DILARANG menyertakan spekulasi, saran gaya penulisan, preferensi kosmetik, atau pujian kosong.
+- Klasifikasikan seluruh temuan ke dalam taksonomi triage P0-P3 dengan confidence score eksplisit.
+- JALANKAN READ-ONLY: Jangan memodifikasi file, staging area git, atau membuat commit.
+</critical>
+
+# Code Review (1 Gerbang Terpadu)
 
 Tiga axis review dijalankan terpisah agar tidak saling memengaruhi:
 
@@ -12,17 +19,18 @@ Tiga axis review dijalankan terpisah agar tidak saling memengaruhi:
 - **Spec** — kode memenuhi requirements, acceptance criteria, dan batas scope?
 - **Correctness/Safety** — ada bug, regresi, celah keamanan, risiko data, atau test penting yang hilang?
 
-## Diff Source
+## Diff Source (Deteksi Konteks Otomatis)
 
-Ditentukan eksplisit oleh caller — satu dari:
+Caller/user dapat memberikan argumen eksplisit atau membiarkan deteksi cerdas bekerja:
 
-| Sumber | Isi | Kapan |
-|--------|-----|-------|
+| Sumber | Penjelasan | Alur Deteksi |
+|--------|------------|--------------|
+| `auto` (default) | Cek status git | Working tree kotor -> diff `git diff HEAD` plus berkas untracked. Working tree bersih -> `origin/main...HEAD` bila `origin/main` ada, bila tidak `HEAD~1..HEAD`, bila keduanya tidak ada -> `BLOCKED`. Detail di Step 1. |
 | `staged` | `git diff --staged` | Chain dari `implement`/`git-commit` — perubahan belum commit |
 | `<fixed-point>` | `git diff <ref>` — commit/branch/tag | Review rentang sejak ref tertentu, diminta user |
 | `none` | Semua file diperlakukan sebagai baru | Repo baru tanpa commit |
 
-Tanpa konteks caller dan user tidak menyebut → tanya user sebelum jalan.
+Tanpa konteks caller dan user tidak menyebut -> jalankan mode `auto`.
 
 ## Prerequisites
 
@@ -34,6 +42,10 @@ Spec + sumber diff sudah di konteks → sumber default `staged`, Step 2 opsi 1 (
 
 ## Step 1 — Validate Diff Source
 
+- **`auto`**: jalankan `git status --porcelain`.
+  - Jika output tidak kosong (working tree kotor): review `git diff HEAD` (staged dan unstaged sekaligus) dan sertakan berkas untracked dari `git ls-files --others --exclude-standard`. Catat di laporan bahwa sumber ini gabungan, bukan `staged` saja.
+  - Jika output kosong (working tree bersih): cek `git rev-parse -q --verify origin/main`. Jika ada, review `git diff origin/main...HEAD`. Jika tidak, cek `git rev-parse -q --verify HEAD~1`; jika ada, review `git diff HEAD~1..HEAD`. Jika keduanya tidak ada, verdict `BLOCKED` dengan alasan "tidak ada base ref".
+  - Hasil `auto` wajib menyebut sub-mode yang terpilih (`dirty`, `origin/main`, atau `HEAD~1`) di Reviewed Snapshot.
 - **`staged`**: pastikan index berisi perubahan (`git diff --staged --quiet`: exit 1 berarti ada diff; exit 0 berarti kosong; exit lain berarti error dan review blocked).
 - **`<fixed-point>`**: resolve dengan `git rev-parse <ref>` dan simpan commit hasil resolve; gagal → tanya user, stop.
 - **`none`** (repo baru): perlakukan file yang diberikan/terdeteksi sebagai file baru; kirim daftar file ke reviewer tanpa diff context.
@@ -82,6 +94,18 @@ Jalankan sub-agent `Standards` dan `Correctness/Safety` bertipe `general`, read-
 
 Temuan **blocking**: bug/regresi yang berdampak nyata, celah keamanan/privacy, risiko kehilangan/korupsi data, requirement/Done criterion wajib yang tidak terpenuhi, atau error validasi yang belum terselesaikan. Smell, style judgement, dan saran non-kritis adalah **non-blocking**.
 
+### Taksonomi Triage & Keyakinan Temuan
+
+Setiap temuan pada Correctness, Spec, dan Standards wajib diklasifikasikan ke dalam taksonomi tingkat keparahan:
+- **P0**: crash fatal, RCE, kebocoran kredensial/rahasia, korupsi/kehilangan data, deadlock.
+- **P1**: bug perilaku, regresi logika, pelanggaran kontrak API publik, memory leak, unhandled edge case pada alur utama.
+- **P2**: edge case dan boundary yang tidak ditangani, degradasi performa, missing error handling I/O sekunder.
+- **P3**: advisory maintainability non-blocking (kode mati, dead branch, diskrepansi dokumentasi terhadap perilaku nyata).
+
+P-level adalah label keparahan, bukan penentu blocking. Status blocking mengikuti definisi di Step 4. P0 dan P1 menjadi blocking bila dampak nyata terbukti. P2 menjadi blocking hanya bila dampak nyata terbukti. P3 selalu non-blocking.
+
+Setiap temuan wajib menyertakan label kepastian: `[High confidence]` atau `[Medium confidence]`. Temuan `Low confidence` dilarang dilaporkan sebagai blocker.
+
 ### Sub-Agent Error Handling
 
 Jika salah satu axis gagal, input review tidak lengkap, atau sumber spec wajib tidak tersedia, verdict `BLOCKED`; tampilkan error per axis dan jangan menyatakan review lulus. Hasil parsial bukan izin commit.
@@ -105,8 +129,8 @@ Mode: Universal | Project
 Persistence: chat-only
 Verdict: PASS | CHANGES_REQUESTED | BLOCKED
 Reviewed Snapshot: <parents (kosong = root, dua hash = merge) + tree dari caller | ref/range | file list>
-Blocking findings: <jumlah dan daftar singkat>
-Non-blocking findings: <jumlah dan daftar singkat>
+Blocking findings: <jumlah, daftar singkat dengan [P0-P2] [High|Medium confidence]>
+Non-blocking findings: <jumlah, daftar singkat dengan [P0-P3] [High|Medium confidence]>
 Spec: available | no spec available | required but unavailable
 Next Step: <aksi yang disarankan, tanpa auto-apply>
 ```
@@ -116,3 +140,9 @@ Jika mode Project, tetap tampilkan kontrak verdict dan laporan di chat; persiste
 ## Other Suggested Skills
 
 [Workflow](../WORKFLOW.md) — Belum ada diff → kerjakan perubahan dulu. Hanya 1 axis → jalanin utuh (axis lain report "tidak ada data"). Butuh deepening arsitektur → `improve-architecture`.
+
+<critical>
+- Pastikan semua temuan memiliki bukti nyata dan klasifikasi P0-P3.
+- Jangan mengubah kode sumber; proses code-review bersifat mutlak read-only.
+- Laporkan status verdict (PASS / CHANGES_REQUESTED / BLOCKED) secara lugas tanpa basa-basi.
+</critical>
