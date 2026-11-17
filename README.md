@@ -80,7 +80,7 @@ flowchart TD
     GHI -.-> IMP
 
     ROUTE -->|Fitur Kecil| IMP
-    ROUTE -->|Bug Sulit| BUG[bug-diagnosis]:::build
+    ROUTE -->|Bug Sulit| BUG[bug-diagnose]:::build
     ROUTE -->|Desain Ragu| PROTO[prototype]:::build
     PROTO --> IMP
 
@@ -157,7 +157,7 @@ flowchart LR
     classDef fix fill:#0284c7,stroke:#0369a1,stroke-width:2px,color:#fff;
     classDef gate fill:#8b5cf6,stroke:#6d28d9,stroke-width:2px,color:#fff;
 
-    ERR([Error / Crash]) --> BUG[bug-diagnosis<br/><i>Vertical Repro Harness</i>]:::diag
+    ERR([Error / Crash]) --> BUG[bug-diagnose<br/><i>Vertical Repro Harness</i>]:::diag
     BUG --> ROOT{Diagnosis Only?}
     ROOT -->|Ya| REPORT[Laporan RCA + Rekomendasi Solusi]:::diag
     ROOT -->|Tidak| FIX[Targeted Fix Implementation]:::fix
@@ -202,7 +202,7 @@ flowchart LR
 | `to-requirements` | Requirement dan acceptance criteria | `Buat requirements untuk fitur billing.` |
 | `to-tasks` | Memecah requirement menjadi task | `Pecah requirements ini menjadi task.` |
 | `implement` | Mengerjakan task | `Implementasikan task export CSV ini.` |
-| `bug-diagnosis` | Bug yang sulit direproduksi | `Cari penyebab timeout ini dengan bug-diagnosis.` |
+| `bug-diagnose` | Bug yang sulit direproduksi | `Cari penyebab timeout ini dengan bug-diagnose.` |
 | `prototype` | Mengeksplorasi desain atau behavior | `Bandingkan dua desain API ini.` |
 | `improve-architecture` | Analisis arsitektur dan refactor | `Cari peluang perbaikan arsitektur.` |
 | `code-review` | Review perubahan | `Review perubahan staged ini.` |
@@ -243,7 +243,7 @@ setup-workflow → project-migration
 - `code-review` dilakukan sebelum commit.
 - Commit, resolusi conflict, migration cleanup, dan aksi berisiko memerlukan
   konfirmasi sesuai kondisinya.
-- `bug-diagnosis` dapat berhenti sebagai diagnosis-only jika belum diminta
+- `bug-diagnose` dapat berhenti sebagai diagnosis-only jika belum diminta
   memperbaiki bug.
 - `prototype` menghasilkan keputusan desain; tidak mengubah production code
   kecuali prototype executable diminta secara eksplisit.
